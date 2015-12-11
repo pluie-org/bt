@@ -1,0 +1,57 @@
+<!doctype>
+<html>
+<head>
+    <title>pluie.org bt demo</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <style>
+    #test { border: 1px dashed #ccc; }
+    </style>
+</head>
+<body>
+<input type="text" value="" id="data"/><br/>
+<button class="cmd-append">dom append</button><br/>
+<button class="cmd-html">dom html</button><br/>
+<button class="cmd-custom">custom</button><br/>
+<h2>demo bt : </h2>
+<div id="test"></div>
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="src/bt.js"></script>
+<script type="text/javascript">
+// define a new custom cmd
+$bt.CMD_CUSTOM = "customCmd";
+// treat custom command to other browser tabs
+$bt.on = function(cmd) {
+    switch (cmd.name) {
+        case $bt.CMD_CUSTOM :
+            // do stuff
+            $bt.log('custom command `'+cmd.name+'` with value `'+cmd.customKey+'`');
+        break;
+    }
+}
+//
+$(document).ready(function() {
+    $bt.init();
+    var bind = function(call) {
+        var html = $('#data').val();
+        if (html.length > 0) call(html)
+        else $('#data').attr('placeholder', 'insert data first !');
+    }
+    $('.cmd-append').on('click', function(){
+        bind(function(data) {
+            $bt.append('#test', data);
+        });
+    });
+    $('.cmd-html').on('click', function(){
+        bind(function(data) {
+            $bt.html('#test', data);
+        });
+    });
+    $('.cmd-custom').on('click', function(){
+        bind(function(data) {
+            $bt.send({ name : $bt.CMD_CUSTOM, customKey : data });
+        });
+    });
+});
+</script>
+</body>
+</html>
