@@ -207,16 +207,14 @@ var $bt  = {
 
 // alias localStorage
 var $l = {
-    var ls = localStorage;
-    clear      : function() { return ls.clear(); },
-    get        : function(key) { return ls.getItem(key); },
-    rem        : function(key) { return ls.removeItem(key); },
-    set        : function(key, value) { return ls.setItem(key, value); }
+    clear      : function() { return localStorage.clear(); },
+    get        : function(key) { return localStorage.getItem(key); },
+    rem        : function(key) { return localStorage.removeItem(key); },
+    set        : function(key, value) { return localStorage.setItem(key, value); }
 };
 
 // alias json
 var $j = {
-    var j = JSON;
-    str        : function(data) { return j.stringify(data); },
-    obj        : function(str) { return j.parse(str); }
+    str        : function(data) { return JSON.stringify(data); },
+    obj        : function(str) { return JSON.parse(str); }
 };
