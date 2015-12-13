@@ -4,16 +4,43 @@
     <title>pluie.org bt demo</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <style>
-    #test { border: 1px dashed #ccc; }
+    body        { background-color:#888; color:white; font-family:arial; font-size:1.3rem; }
+    #test       { border: 1px dashed #ccc; }
+    body > div  { border-radius:20px; margin:40px; padding:20px; background-color: #ccc; color:black; }
+    body > span { font-size:0.8rem; }
+    button      { padding:5px 15px; }
+    h3          { margin:35px 0 10px 0; }
+    h2          { margin:5px 0 0 0; }
+    textarea    { padding:8px 5px; border-radius:10px; border-style:solid; width:100%; height:120px; }
+    #test       { margin:20px; background-color:white; padding:20px; border: 1px dashed #aaa; }
     </style>
 </head>
 <body>
-<input type="text" value="" id="data"/><br/>
-<button class="cmd-append">dom append</button><br/>
-<button class="cmd-html">dom html</button><br/>
-<button class="cmd-custom">custom</button><br/>
-<h2>demo bt : </h2>
+<h2>pluie.org bt demo : </h2>
+<span>author : a-sansara</span>
+<div>
+<p>
+    this js lib can perform several actions on browser tabs.
+</p>
+<h3>Static actions</h3>
+<button class="cmd-sta-append" title="$bt.append('#test', '<b>it\'s cool to append</b><br/>');">static dom append</button>
+<button class="cmd-sta-html" title="$bt.html('#test', '<b>it\'s cool to rewrite</b><br/>')">static dom html</button>
+
+<h3>Dynamic actions</h3>
+enter txt or html : <br/>
+<textarea id="data"></textarea>
+<br/>select your action<br/>
+<button class="cmd-append">dom append</button>
+<button class="cmd-html">dom html</button>
+<button class="cmd-sync">dom sync</button>
+<button class="cmd-tarsync">target dom sync</button>
+<button class="cmd-reload">tab reload</button>
+<button class="cmd-custom">custom cmd</button>
+<br/>then check other tabs
+
+<h3>Target output</h3>
 <div id="test"></div>
+</div>
 <script type="text/javascript" src="src/bt.js"></script>
 <script type="text/javascript">
 // define a new custom cmd
@@ -24,6 +51,7 @@ $bt.on = function(cmd) {
         case $bt.CMD_CUSTOM :
             // do stuff
             $bt.log('custom command `'+cmd.name+'` with value `'+cmd.customKey+'`');
+            alert('FROM TAB '+$bt.id+' : \ncustom command `'+cmd.name+'` with value `'+cmd.customKey+'`');
         break;
     }
 }
@@ -49,6 +77,22 @@ $v(document).ready(function() {
         bind(function(data) {
             $bt.send({ name : $bt.CMD_CUSTOM, customKey : data });
         });
+    });
+    $v('.cmd-sync').on('click', function(){
+        $v('h2').html('pluie.org bt demo (sync on '+(new Date).getTime()+') :');
+        $bt.sync('h2');
+    });
+    $v('.cmd-reload').on('click', function(){
+        $bt.reload(window.location.pathname+"?reload="+(new Date).getTime());
+    });
+    $v('.cmd-tarsync').on('click', function(){
+        $bt.sync('#test');
+    });
+    $v('.cmd-sta-append').on('click', function(){
+        eval(this.title);
+    });
+    $v('.cmd-sta-html').on('click', function(){
+        eval(this.title);
     });
 });
 </script>

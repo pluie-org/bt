@@ -12,12 +12,33 @@ manage communication between browser tabs
         $bt.init();
     }
 
+
 ### Internal Commands
 
     // append data on node to other browser tabs
-    $bt.append('#test', '<b>it's cool to append</b>');
+    $bt.append('#test', "<b>it's cool to append</b>");
+    
     // rewrite content on node to other browser tabs
-    $bt.html('#test', '<b>it's cool to rewrite</b>');
+    $bt.html('#test', "<b>it's cool to rewrite</b>");
+
+    // rewrite content to specific browser tabs
+    $bt.html('#test', "<b>it's cool to rewrite</b>", '1449974562012');
+
+    // perform a node synchro to other browser tabs
+    $bt.sync('#test');
+
+    // reload other browser tabs
+    $bt.reload();
+
+    // reload other browser tabs to specific url
+    $bt.reload(window.location.path+"?reloaded=1");
+
+    // get browser tab list
+    $bt.list;
+
+    // current browser tab id
+    $bt.id;
+
 
 ### Custom Commands
 

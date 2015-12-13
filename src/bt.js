@@ -57,6 +57,8 @@ var $bt  = {
     CMD_APPEND : 'dom.append',
     /*! @constant CMD_HTML internal command to perform a dom html */
     CMD_HTML   : 'dom.html',
+    /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
+    CMD_RELOAD : 'bt.reload',
     /*!
      * @desc    initialize on dom ready
      * @public
@@ -104,6 +106,7 @@ var $bt  = {
      * @method  append
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
     append     : function(selector, data, btid) {
         this._dom(this.CMD_APPEND, selector, data, btid);
@@ -114,6 +117,7 @@ var $bt  = {
      * @method  append
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
     html       : function(selector, data, btid) {
         this._dom(this.CMD_HTML, selector, data, btid);
@@ -123,9 +127,20 @@ var $bt  = {
      * @public
      * @method  sync
      * @param   string  selector    the selector wich target the node(s) to synchro
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
     sync       : function(selector, btid) {
-        this._dom(this.CMD_HTML, selector, $q(selector).html(), btid);
+        this._dom(this.CMD_HTML, selector, $v(selector).html(), btid);
+    },
+    /*!
+     * @desc    perform an reload command on other tabs with specified url
+     * @public
+     * @method  reload
+     * @param   string  url         the url to load (if not defined load current page)
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
+     */
+    reload     : function(url, btid) {
+        $bt.send({ name : $bt.CMD_RELOAD, url : url, to : !btid ? '*' : btid });
     },
     /*! @private */
     _refresh   : function() {
@@ -178,6 +193,7 @@ var $bt  = {
         var cmd = $j.obj(e.newValue);
         if (!cmd) return;
         if (cmd.to == "*" || cmd.to == $bt.id) {
+            $bt.log("do "+cmd.name);
             $bt.log(cmd);
             switch(cmd.name) {
 
@@ -187,13 +203,15 @@ var $bt  = {
                     break;
 
                 case $bt.CMD_APPEND :
-                    $bt.log("do "+$bt.CMD_APPEND);
                     $v(cmd.selector).append(cmd.data);
                     break;
 
                 case $bt.CMD_HTML :
-                    $bt.log("do "+$bt.CMD_HTML);
                     $v(cmd.selector).html(cmd.data);
+                    break;
+
+                case $bt.CMD_RELOAD :
+                    window.location = typeof cmd.url != "undefined" ? cmd.url : window.location;
                     break;
 
                 default :
