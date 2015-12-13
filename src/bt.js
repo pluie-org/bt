@@ -3,26 +3,47 @@
  * @contributors  :
  * @copyright     : pluie.org
  * @date          : 2015-12-10 22:22:34
- * @version       : 0.2
+ * @version       : 0.4
  * @license       : MIT
  * @require       : html5 localStorage
  * @desc          :
  *
- *  BrowserTab USAGE :
+ *  USAGE :
  *
  *
  *  Initialize
  *
- *      $(document).ready(function() {
+ *      $v(document).ready(function() {
  *          $bt.init();
  *      }
+ *
  *
  *  Internal Commands
  *
  *      // append data on node to other browser tabs
- *      $bt.append('#test', '<b>it's cool to append</b>');
+ *      $bt.append('#test', "<b>it's cool to append</b>");
+ *
  *      // rewrite content on node to other browser tabs
- *      $bt.html('#test', '<b>it's cool to rewrite</b>');
+ *      $bt.html('#test', "<b>it's cool to rewrite</b>");
+ *
+ *      // rewrite content to specific browser tabs
+ *      $bt.html('#test', "<b>it's cool to rewrite</b>", '1449974562012');
+ *
+ *      // perform a node synchro to other browser tabs
+ *      $bt.sync('#test');
+ *
+ *      // reload other browser tabs
+ *      $bt.reload();
+ *
+ *      // reload other browser tabs to specific url
+ *      $bt.reload(window.location.path+"?reloaded=1");
+ *
+ *      // get browser tab list
+ *      $bt.list;
+ *
+ *      // current browser tab id
+ *      $bt.id;
+ *
  *
  *  Custom Commands
  *
@@ -40,6 +61,15 @@
  *
  *      // send a custom command to other browser tabs
  *      $bt.send({ name : $bt.CMD_CUSTOM, customKey : 'customValue' });
+ *
+ *  Bonus
+ *
+ *      // alias localStorage : clear|rem|get|set
+ *      $l;
+ *      // alias json : str|obj
+ *      $j
+ *      // minimal vanilla jquery style : ready|on|html|append|attr|val|foreach
+ *      $v
  *
  *  enjoy !
  */
@@ -224,7 +254,6 @@ var $bt  = {
 // vanilla minimal jquery style
 var $v = function(p) {
     var s  = typeof p == "string";
-    var z = "cool";
     var c = s ? document.querySelectorAll(p) : null;
     var a = s ? [].slice.call(c) : [p];
     delete(s);
@@ -284,7 +313,7 @@ var $v = function(p) {
     return this;
     }
 }
-// alias localStorage
+// alias localStorage : clear|rem|get|set
 var $l = $v(localStorage);
-// alias json
+// alias json : str|obj
 var $j = $v(JSON);

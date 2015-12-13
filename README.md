@@ -58,6 +58,16 @@ manage communication between browser tabs
     $bt.send({ name : $bt.CMD_CUSTOM, customKey : 'customValue' });
 
 
+### Bonus
+
+    // alias localStorage : clear|rem|get|set
+    $l;
+    // alias json : str|obj
+    $j
+    // minimal vanilla jquery style : ready|on|html|append|attr|val|foreach
+    $v
+
+
 ### Demo
 
 on chromium/chrome browser make sure to test on a web server (not directly file://)
