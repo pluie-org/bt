@@ -3,12 +3,12 @@ manage communication between browser tabs
 
 ### require
 
-  jquery html5 localStorage
+  html5 localStorage
 
 
 ### Initialize
 
-    $(document).ready(function() {
+    $v(document).ready(function() {
         $bt.init();
     }
 
@@ -39,7 +39,7 @@ manage communication between browser tabs
 
 ### Demo
 
-on chromium/chrome browser make sure to test on a web server (not directly file)
+on chromium/chrome browser make sure to test on a web server (not directly file://)
 
 
 enjoy !

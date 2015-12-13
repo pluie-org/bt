@@ -5,7 +5,7 @@
  * @date          : 2015-12-10 22:22:34
  * @version       : 0.2
  * @license       : MIT
- * @require       : jquery html5 localStorage
+ * @require       : html5 localStorage
  * @desc          :
  *
  *  BrowserTab USAGE :
@@ -64,7 +64,6 @@ var $bt  = {
      * @param   string  fn          a function to call on initializing on dom ready
      */
     init       : function(fn) {
-        window.onbeforeunload = $bt._unload;
         this._init(fn);
     },
     /*!
@@ -126,7 +125,7 @@ var $bt  = {
      * @param   string  selector    the selector wich target the node(s) to synchro
      */
     sync       : function(selector, btid) {
-        this._dom(this.CMD_HTML, selector, $(selector).html(), btid);
+        this._dom(this.CMD_HTML, selector, $q(selector).html(), btid);
     },
     /*! @private */
     _refresh   : function() {
@@ -144,13 +143,13 @@ var $bt  = {
     },
     /*! @private */
     _init      : function(fn) {
-        window.onbeforeunload = $bt._unload;
-        $(window).on('storage', $bt._cmd);
-        $(window).on('focus', $bt._focus);
+        $v(window).on('beforeunload', $bt._unload);
+        $v(window).on('storage', $bt._cmd);
+        $v(window).on('focus', $bt._focus);
         //~ $l.clear();
         $bt.id   = (new Date).getTime();
-        var tabs = $l.get($bt.LS_TABS);
-        $bt.list = tabs==null ? [] : $j.obj(tabs);
+        var t    = $l.get($bt.LS_TABS);
+        $bt.list = t==null ? [] : $j.obj(t);
         $bt.list.push($bt.id);
         $l.set($bt.LS_TABS, $j.str($bt.list));
         $bt._broadcast();
@@ -158,8 +157,8 @@ var $bt  = {
         if (typeof fn == "function") fn();
     },
     /*! @private */
-    _dom       : function(name, selector, data, btid) {
-        $bt.send({ name : name, selector : selector, data : data, to : !btid ? '*' : btid });
+    _dom       : function(n, s, d, id) {
+        $bt.send({ name : n, selector : s, data : d, to : !id ? '*' : id });
     },
     /*! @private */
     _unload    : function(e) {
@@ -175,8 +174,8 @@ var $bt  = {
     },
     /*! @private */
     _cmd       : function(e) {
-        if (e.originalEvent.key!=$bt.LS_CMD) return;
-        var cmd = $j.obj(e.originalEvent.newValue);
+        if (e.key!=$bt.LS_CMD) return;
+        var cmd = $j.obj(e.newValue);
         if (!cmd) return;
         if (cmd.to == "*" || cmd.to == $bt.id) {
             $bt.log(cmd);
@@ -189,12 +188,12 @@ var $bt  = {
 
                 case $bt.CMD_APPEND :
                     $bt.log("do "+$bt.CMD_APPEND);
-                    $(cmd.selector).append(cmd.data);
+                    $v(cmd.selector).append(cmd.data);
                     break;
 
                 case $bt.CMD_HTML :
                     $bt.log("do "+$bt.CMD_HTML);
-                    $(cmd.selector).html(cmd.data);
+                    $v(cmd.selector).html(cmd.data);
                     break;
 
                 default :
@@ -204,17 +203,70 @@ var $bt  = {
         }
     }
 }
-
+// vanilla minimal jquery style
+var $v = function(p) {
+    var s  = typeof p == "string";
+    var z = "cool";
+    var c = s ? document.querySelectorAll(p) : null;
+    var a = s ? [].slice.call(c) : [p];
+    delete(s);
+    // alias 
+    if (p==localStorage) {
+        return {
+            clear : function() { return p.clear(); },
+            get   : function(k) { return p.getItem(k); },
+            rem   : function(k) { return p.removeItem(k); },
+            set   : function(k, v) { return p.setItem(k, v); }
+        };
+    }
+    // alias 
+    else if (p==JSON) {
+        // alias JSON
+        return {
+            str : function(o) { return p.stringify(o); },
+            obj : function(s) { return p.parse(s); }
+        };
+    }
+    else {
+        this.foreach = function(f) {
+            [].forEach.call(c, f);
+        };
+        // assume uniq selector
+        // Living Standard cf https://w3c.github.io/DOM-Parsing/#innerhtml
+        this.html = function(d) {
+            if (arguments.length == 0) return a[0].innerHTML;
+            else a[0].innerHTML = d;
+        };
+        this.append = function(d) {
+            this.foreach(function(n) {
+                n.innerHTML += d;
+            });
+        };
+        this.on = function(t, f, u) {
+            if (c != null) {
+                this.foreach(function(n) {
+                    n.addEventListener(t, f, u===true);
+                });
+            }
+            else a[0].addEventListener(t, f, u===true);
+        };
+        // assume uniq selector
+        this.val = function(d) {
+            if (arguments.length == 0) return a[0].value;
+            else a[0].value = d;
+        };
+        // assume uniq selector
+        this.attr = function(k, v) {
+            if (arguments.length == 1) return a[0].getAttribute(k);
+            else a[0].setAttribute(k, v);
+        };
+        this.ready = function(f) {
+            document.addEventListener('DOMContentLoaded', f);
+        };
+    return this;
+    }
+}
 // alias localStorage
-var $l = {
-    clear      : function() { return localStorage.clear(); },
-    get        : function(key) { return localStorage.getItem(key); },
-    rem        : function(key) { return localStorage.removeItem(key); },
-    set        : function(key, value) { return localStorage.setItem(key, value); }
-};
-
+var $l = $v(localStorage);
 // alias json
-var $j = {
-    str        : function(data) { return JSON.stringify(data); },
-    obj        : function(str) { return JSON.parse(str); }
-};
+var $j = $v(JSON);
