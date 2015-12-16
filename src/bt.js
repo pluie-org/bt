@@ -105,21 +105,21 @@ var $bt  = {
     VERSION      : 0.5,
     TRACE        : true && !$.isNone(console),
     /*! @constant LS_TABS localStorage key for browsertabs list  */
-    LS_TABS      : 'bt.tabs',
+    LS_TABS      : 'bt.list',
     /*! @constant LS_CURTAB localStorage key for current browsertab */
-    LS_CURTAB    : 'bt.ctab',
+    LS_CURTAB    : 'bt.current',
     /*! @constant LS_CMD localStorage key command to interact with other tabs */
-    LS_CMD       : 'bt.cmd',
+    LS_CMD       : 'bt.event',
     /*! @constant CMD_SYNC internal command to perform a browser tab synchro */
     CMD_SYNC     : 'bt.sync',
     /*! @constant CMD_VAR_SET internal command to perform a browser tab var set */
-    CMD_VAR_SET  : 'var.set',
+    CMD_VAR_SET  : 'bt.set',
     /*! @constant CMD_VAR_GET internal command to perform a browser tab var get */
-    CMD_VAR_GET  : 'var.get',
+    CMD_VAR_GET  : 'bt.get',
     /*! @constant CMD_APPEND internal command to perform a dom append */
-    CMD_APPEND   : 'dom.append',
+    CMD_APPEND   : 'bt.dom.append',
     /*! @constant CMD_HTML internal command to perform a dom html */
-    CMD_HTML     : 'dom.html',
+    CMD_HTML     : 'bt.dom.rewrite',
     /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
     CMD_RELOAD   : 'bt.reload',
     /*! @var vars */

@@ -84,7 +84,7 @@ $(document).ready(function() {
         });
     });
     $('.cmd-sync').on('click', function(){
-        $v('h2').html('pluie.org bt demo (sync on '+(new Date).getTime()+') :');
+        $('h2').html('pluie.org bt demo (sync on '+(new Date).getTime()+') :');
         $bt.sync('h2');
     });
     $('.cmd-reload').on('click', function(){
