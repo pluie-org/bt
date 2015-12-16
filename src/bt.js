@@ -3,19 +3,21 @@
  * @contributors  :
  * @copyright     : pluie.org
  * @date          : 2015-12-10 22:22:34
- * @version       : 0.4
+ * @version       : 0.5
  * @license       : MIT
- * @require       : html5 localStorage
- * @desc          :
+ * @require       : html5 localStorage svan (small vanilla jquery-like lib)
+ * @desc          : manage communication between browser tabs
  *
  *  USAGE :
  *
  *
  *  Initialize
  *
- *      $v(document).ready(function() {
+ *
+ *      $(document).ready(function() {
  *          $bt.init();
- *      }
+ *      });
+ *
  *
  *
  *  Internal Commands
@@ -26,17 +28,26 @@
  *      // rewrite content on node to other browser tabs
  *      $bt.html('#test', "<b>it's cool to rewrite</b>");
  *
- *      // rewrite content to specific browser tabs
- *      $bt.html('#test', "<b>it's cool to rewrite</b>", '1449974562012');
+ *      // append content to specific browser tab
+ *      $bt.append('#test', "<b>it's cool to rewrite</b>", null, null, '1449974562012');
+ *
+ *      // rewrite content to specified browser tab with callback
+ *      $bt.html('#test', "<b>it's cool to rewrite</b>", null, function() { alert('callback'); }, '1449974562012');
+ *
+ *      // append content to specified browser tab on specific frame
+ *      $bt.append('#test', "<b>it's cool to rewrite</b>", 'frameName', null, '1449974562012');
  *
  *      // perform a node synchro to other browser tabs
  *      $bt.sync('#test');
  *
+ *      // perform a node synchro to specified browser tab on specific frame with callback
+ *      $bt.sync('#test', 'frameName', callback, '1449974562012');
+ *
  *      // reload other browser tabs
  *      $bt.reload();
  *
- *      // reload other browser tabs to specific url
- *      $bt.reload(window.location.path+"?reloaded=1");
+ *      // reload specific browser tab to specific url
+ *      $bt.reload(window.location.path+"?reloaded=1", '1449974562012');
  *
  *      // get browser tab list
  *      $bt.list;
@@ -68,34 +79,58 @@
  *      $l;
  *      // alias json : str|obj
  *      $j
- *      // minimal vanilla jquery style : ready|on|html|append|attr|val|foreach
- *      $v
  *
  *  enjoy !
  */
+
+var $l = (function alias() {
+    var a = localStorage;
+    return {
+        clear : function() { return a.clear(); },
+        get   : function(k) { return a.getItem(k); },
+        rem   : function(k) { return a.removeItem(k); },
+        set   : function(k, v) { return a.setItem(k, v); }
+    };
+}());
+
+var $j = (function alias() {
+    var a = JSON;
+    return {
+        str : function(o) { return a.stringify(o); },
+        obj : function(s) { return a.parse(s); }
+    };
+}());
+
 var $bt  = {
-    TRACE      : true && typeof console != "undefined",
+    VERSION      : 0.5,
+    TRACE        : true && !$.isNone(console),
     /*! @constant LS_TABS localStorage key for browsertabs list  */
-    LS_TABS    : 'bt.tabs',
+    LS_TABS      : 'bt.tabs',
     /*! @constant LS_CURTAB localStorage key for current browsertab */
-    LS_CURTAB  : 'bt.ctab',
+    LS_CURTAB    : 'bt.ctab',
     /*! @constant LS_CMD localStorage key command to interact with other tabs */
-    LS_CMD     : 'bt.cmd',
+    LS_CMD       : 'bt.cmd',
     /*! @constant CMD_SYNC internal command to perform a browser tab synchro */
-    CMD_SYNC   : 'bt.sync',
+    CMD_SYNC     : 'bt.sync',
+    /*! @constant CMD_VAR_SET internal command to perform a browser tab var set */
+    CMD_VAR_SET  : 'var.set',
+    /*! @constant CMD_VAR_GET internal command to perform a browser tab var get */
+    CMD_VAR_GET  : 'var.get',
     /*! @constant CMD_APPEND internal command to perform a dom append */
-    CMD_APPEND : 'dom.append',
+    CMD_APPEND   : 'dom.append',
     /*! @constant CMD_HTML internal command to perform a dom html */
-    CMD_HTML   : 'dom.html',
+    CMD_HTML     : 'dom.html',
     /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
-    CMD_RELOAD : 'bt.reload',
+    CMD_RELOAD   : 'bt.reload',
+    /*! @var vars */
+    vars         : [],
     /*!
      * @desc    initialize on dom ready
      * @public
      * @method  init
      * @param   string  fn          a function to call on initializing on dom ready
      */
-    init       : function(fn) {
+    init         : function(fn) {
         this._init(fn);
     },
     /*!
@@ -104,7 +139,7 @@ var $bt  = {
      * @method  on
      * @param   string  cmd         a cmd to treat
      */
-    on         : function(cmd) {
+    on           : function(cmd) {
         // custom
         this.log(cmd);
     },
@@ -114,7 +149,7 @@ var $bt  = {
      * @method  on
      * @param   mix     data        data to log
      */
-    log        : function(data) {
+    log          : function(data) {
         if (this.TRACE) console.log(data);
     },
     /*!
@@ -123,75 +158,93 @@ var $bt  = {
      * @method  send
      * @param   object  cmd         the cmd to send
      */
-    send       : function(cmd) {
+    send         : function(cmd) {
         cmd.uid  = this.id+Math.random();
         cmd.from = this.id;
-        if (typeof cmd.to == "undefined") cmd.to = "*";
-        $l.set(this.LS_CMD, $j.str(cmd));
+        if ($.isNone(cmd.to)) cmd.to = "*";
+        cmd = $j.str(cmd);
+        $bt.log('sending cmd : '+this.LS_CMD+' : '+cmd);
+        $l.set(this.LS_CMD, cmd);
         $l.rem(this.LS_CMD);
     },
     /*!
-     * @desc    perform an dom append command on other tabs
+     * @desc    perform a dom append command on other tabs
      * @public
      * @method  append
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
+     * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    append     : function(selector, data, btid) {
-        this._dom(this.CMD_APPEND, selector, data, btid);
+    append       : function(selector, data, ctx, fn, btid) {
+        this._dom(this.CMD_APPEND, ctx, selector, data, fn, btid);
     },
     /*!
-     * @desc    perform an dom html command on other tabs
+     * @desc    perform a dom html command on other tabs
      * @public
      * @method  append
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
+     * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    html       : function(selector, data, btid) {
-        this._dom(this.CMD_HTML, selector, data, btid);
+    html         : function(selector, data, ctx, fn, btid) {
+        this._dom(this.CMD_HTML, ctx, selector, data, fn, btid);
     },
     /*!
-     * @desc    perform an dom synchro command on other tabs
+     * @desc    perform a dom synchro command on other tabs
      * @public
      * @method  sync
      * @param   string  selector    the selector wich target the node(s) to synchro
+     * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    sync       : function(selector, btid) {
-        this._dom(this.CMD_HTML, selector, $v(selector).html(), btid);
+    sync         : function(selector, ctx, fn, btid) {
+        var c = !$.isNone(ctx) && ctx != null ? parent.frames[ctx].document : document;
+        this._dom(this.CMD_HTML, ctx, selector, $(selector, c).html(), fn, btid);
     },
     /*!
-     * @desc    perform an reload command on other tabs with specified url
+     * @desc    perform a reload command on other tabs with specified url
      * @public
      * @method  reload
      * @param   string  url         the url to load (if not defined load current page)
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    reload     : function(url, btid) {
+    reload       : function(url, btid) {
         $bt.send({ name : $bt.CMD_RELOAD, url : url, to : !btid ? '*' : btid });
     },
+    /*! */
+    varset       : function(k, v) {
+        $bt.vars[k] = v;
+        $bt.send({ name : $bt.CMD_VAR_SET, data : { k : k, v : v } });
+    },
+    /*! */
+    varget       : function(k) {
+        if ($bt.list.length >1) {
+            var to = $bt.list[0] == $bt.id ? $bt.list[1] : $bt.list[0];
+            $bt.send({ name : $bt.CMD_VAR_GET, data : { k : k }, to : to });
+        }
+        return $bt.vars[k];
+    },
     /*! @private */
-    _refresh   : function() {
+    _refresh     : function() {
         $bt.list = $j.obj($l.get($bt.LS_TABS));
     },
     /*! @private */
-    _broadcast : function() {
+    _broadcast   : function() {
         $bt.send({ name : $bt.CMD_SYNC });
     },
     /*! @private */
-    _remove    : function(id) {
+    _remove      : function(id) {
         if (!id) id = $bt.id;
         var i = $bt.list.indexOf(id);
         if (i > -1) $bt.list.splice(i, 1);
     },
     /*! @private */
-    _init      : function(fn) {
-        $v(window).on('beforeunload', $bt._unload);
-        $v(window).on('storage', $bt._cmd);
-        $v(window).on('focus', $bt._focus);
-        //~ $l.clear();
+    _init        : function(fn) {
+        $(window).on('beforeunload', $bt._unload);
+        $(window).on('storage', $bt._cmd);
+        $(window).on('focus', $bt._focus);
         $bt.id   = (new Date).getTime();
         var t    = $l.get($bt.LS_TABS);
         $bt.list = t==null ? [] : $j.obj(t);
@@ -199,14 +252,14 @@ var $bt  = {
         $l.set($bt.LS_TABS, $j.str($bt.list));
         $bt._broadcast();
         $bt.log($bt.list);
-        if (typeof fn == "function") fn();
+        if ($.isFunc(fn)) fn();
     },
     /*! @private */
-    _dom       : function(n, s, d, id) {
-        $bt.send({ name : n, selector : s, data : d, to : !id ? '*' : id });
+    _dom         : function(n, c, s, d, fn, id) {
+        $bt.send({ name : n, context : c, selector : s, data : d, fn : fn, to : !id ? '*' : id });
     },
     /*! @private */
-    _unload    : function(e) {
+    _unload      : function(e) {
         $bt._refresh();
         $bt._remove();
         $l.set($bt.LS_TABS, $j.str($bt.list));
@@ -214,17 +267,29 @@ var $bt  = {
         return null;
     },
     /*! @private */
-    _focus     : function(e) {
+    _focus       : function(e) {
         $l.set($bt.LS_CURTAB, $bt.id);
     },
     /*! @private */
-    _cmd       : function(e) {
+    _cmd         : function(e) {
+        if (!$.isNone(e.originalEvent)) e = e.originalEvent;
         if (e.key!=$bt.LS_CMD) return;
         var cmd = $j.obj(e.newValue);
         if (!cmd) return;
+        $bt.log('RECEIVING cmd '+cmd.name+' : ');
         if (cmd.to == "*" || cmd.to == $bt.id) {
             $bt.log("do "+cmd.name);
             $bt.log(cmd);
+            try {
+                if (!$.isNone(cmd.context)) {
+                    $bt.log(cmd.context);
+                    cmd.context = window.parent.frames[cmd.context].document;
+                    $bt.log(cmd.context);
+                }
+            }
+            catch(e) {
+                $bt.log("bad context "+cmd.context+" : "+e.message);
+            }
             switch(cmd.name) {
 
                 case $bt.CMD_SYNC : 
@@ -233,87 +298,39 @@ var $bt  = {
                     break;
 
                 case $bt.CMD_APPEND :
-                    $v(cmd.selector).append(cmd.data);
+                    $(cmd.selector, cmd.context).append(cmd.data);
                     break;
 
                 case $bt.CMD_HTML :
-                    $v(cmd.selector).html(cmd.data);
+                    $(cmd.selector, cmd.context).html(cmd.data);
                     break;
 
                 case $bt.CMD_RELOAD :
-                    window.location = typeof cmd.url != "undefined" ? cmd.url : window.location;
+                    window.location = !$.isNone(cmd.url) ? cmd.url : window.location;
+                    break;
+
+                case $bt.CMD_VAR_GET :
+                    $bt.varset(cmd.data.k, $bt.vars[cmd.data.k], cmd.from);
+                    break;
+
+                case $bt.CMD_VAR_SET :
+                    $bt.vars[cmd.data.k] = cmd.data.v;
                     break;
 
                 default :
                     // do your stuff here
-                    if (typeof $bt.on == "function") $bt.on(cmd);
+                    if ($.isFunc($bt.on)) $bt.on(cmd);
             }
+            if ($.isStr(cmd.fn) && cmd.fn.length>0) {
+                $bt.log(cmd.fn);
+                var f = eval("window."+cmd.fn);
+                if ($.isFunc(f)) {
+                    f();
+                }
+            }
+        }
+        else {
+            $bt.log("ignoring (not target)");
         }
     }
 }
-// vanilla minimal jquery style
-var $v = function(p) {
-    var s  = typeof p == "string";
-    var c = s ? document.querySelectorAll(p) : null;
-    var a = s ? [].slice.call(c) : [p];
-    delete(s);
-    // alias 
-    if (p==localStorage) {
-        return {
-            clear : function() { return p.clear(); },
-            get   : function(k) { return p.getItem(k); },
-            rem   : function(k) { return p.removeItem(k); },
-            set   : function(k, v) { return p.setItem(k, v); }
-        };
-    }
-    // alias 
-    else if (p==JSON) {
-        // alias JSON
-        return {
-            str : function(o) { return p.stringify(o); },
-            obj : function(s) { return p.parse(s); }
-        };
-    }
-    else {
-        this.foreach = function(f) {
-            [].forEach.call(c, f);
-        };
-        // assume uniq selector
-        // Living Standard cf https://w3c.github.io/DOM-Parsing/#innerhtml
-        this.html = function(d) {
-            if (arguments.length == 0) return a[0].innerHTML;
-            else a[0].innerHTML = d;
-        };
-        this.append = function(d) {
-            this.foreach(function(n) {
-                n.innerHTML += d;
-            });
-        };
-        this.on = function(t, f, u) {
-            if (c != null) {
-                this.foreach(function(n) {
-                    n.addEventListener(t, f, u===true);
-                });
-            }
-            else a[0].addEventListener(t, f, u===true);
-        };
-        // assume uniq selector
-        this.val = function(d) {
-            if (arguments.length == 0) return a[0].value;
-            else a[0].value = d;
-        };
-        // assume uniq selector
-        this.attr = function(k, v) {
-            if (arguments.length == 1) return a[0].getAttribute(k);
-            else a[0].setAttribute(k, v);
-        };
-        this.ready = function(f) {
-            document.addEventListener('DOMContentLoaded', f);
-        };
-    return this;
-    }
-}
-// alias localStorage : clear|rem|get|set
-var $l = $v(localStorage);
-// alias json : str|obj
-var $j = $v(JSON);

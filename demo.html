@@ -19,8 +19,12 @@
 <h2>pluie.org bt demo : </h2>
 <span>author : a-sansara - version : 0.4</span>
 <div>
-<p>
-    this js lib can perform several actions on browser tabs.
+<p> Manage commnunication between browser tabs.</p>
+<p> this js lib can perform several actions on browser tabs like :<br/>
+    <ul><li>append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.</li>
+        <li>reload all tabs or a specific tab with specified url or tab 's current url</li>
+        <li>perform your custom actions on all tabs or specific tab</li>
+    </ul>
 </p>
 <h3>Static actions</h3>
 <button class="cmd-sta-append" title="$bt.append('#test', '<b>it\'s cool to append</b><br/>');">static dom append</button>
@@ -41,6 +45,7 @@ enter txt or html : <br/>
 <h3>Target output</h3>
 <div id="test"></div>
 </div>
+<script type="text/javascript" src="src/svan-min.js"></script>
 <script type="text/javascript" src="src/bt-min.js"></script>
 <script type="text/javascript">
 // define a new custom cmd
@@ -56,42 +61,42 @@ $bt.on = function(cmd) {
     }
 }
 //
-$v(document).ready(function() {
+$(document).ready(function() {
     $bt.init();
     var bind = function(call) {
-        var html = $v('#data').val();
+        var html = $('#data').val();
         if (html.length > 0) call(html)
-        else $v('#data').attr('placeholder', 'insert data first !');
+        else $('#data').attr('placeholder', 'insert data first !');
     }
-    $v('.cmd-append').on('click', function(){
+    $('.cmd-append').on('click', function(){
         bind(function(data) {
             $bt.append('#test', data);
         });
     });
-    $v('.cmd-html').on('click', function(){
+    $('.cmd-html').on('click', function(){
         bind(function(data) {
             $bt.html('#test', data);
         });
     });
-    $v('.cmd-custom').on('click', function(){
+    $('.cmd-custom').on('click', function(){
         bind(function(data) {
             $bt.send({ name : $bt.CMD_CUSTOM, customKey : data });
         });
     });
-    $v('.cmd-sync').on('click', function(){
+    $('.cmd-sync').on('click', function(){
         $v('h2').html('pluie.org bt demo (sync on '+(new Date).getTime()+') :');
         $bt.sync('h2');
     });
-    $v('.cmd-reload').on('click', function(){
+    $('.cmd-reload').on('click', function(){
         $bt.reload(window.location.pathname+"?reload="+(new Date).getTime());
     });
-    $v('.cmd-tarsync').on('click', function(){
+    $('.cmd-tarsync').on('click', function(){
         $bt.sync('#test');
     });
-    $v('.cmd-sta-append').on('click', function(){
+    $('.cmd-sta-append').on('click', function(){
         eval(this.title);
     });
-    $v('.cmd-sta-html').on('click', function(){
+    $('.cmd-sta-html').on('click', function(){
         eval(this.title);
     });
 });

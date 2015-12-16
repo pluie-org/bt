@@ -1,14 +1,19 @@
 # bt
-manage communication between browser tabs
+
+    Manage commnunication between browser tabs.
+    this js lib can perform several actions on browser tabs like :
+        - append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.
+        - reload all tabs or a specific tab with specified url or tab 's current url
+        - perform your custom actions on all tabs or specific tab
 
 ### require
 
-  html5 localStorage
+    html5 localStorage svan (pluie.org small vanilla jquery-like lib)
 
 
 ### Initialize
 
-    $v(document).ready(function() {
+    $(document).ready(function() {
         $bt.init();
     }
 
@@ -17,21 +22,30 @@ manage communication between browser tabs
 
     // append data on node to other browser tabs
     $bt.append('#test', "<b>it's cool to append</b>");
-    
+
     // rewrite content on node to other browser tabs
     $bt.html('#test', "<b>it's cool to rewrite</b>");
 
-    // rewrite content to specific browser tabs
-    $bt.html('#test', "<b>it's cool to rewrite</b>", '1449974562012');
+    // append content to specific browser tab
+    $bt.append('#test', "<b>it's cool to rewrite</b>", null, null, '1449974562012');
+
+    // rewrite content to specified browser tab with callback
+    $bt.html('#test', "<b>it's cool to rewrite</b>", null, function() { alert('callback'); }, '1449974562012');
+
+    // append content to specified browser tab on specific frame
+    $bt.append('#test', "<b>it's cool to rewrite</b>", 'frameName', null, '1449974562012');
 
     // perform a node synchro to other browser tabs
     $bt.sync('#test');
 
+    // perform a node synchro to specified browser tab on specific frame with callback
+    $bt.sync('#test', 'frameName', callback, '1449974562012');
+
     // reload other browser tabs
     $bt.reload();
 
-    // reload other browser tabs to specific url
-    $bt.reload(window.location.path+"?reloaded=1");
+    // reload specific browser tab to specific url
+    $bt.reload(window.location.path+"?reloaded=1", '1449974562012');
 
     // get browser tab list
     $bt.list;
@@ -61,11 +75,9 @@ manage communication between browser tabs
 ### Bonus
 
     // alias localStorage : clear|rem|get|set
-    $l;
+    $l
     // alias json : str|obj
     $j
-    // minimal vanilla jquery style : ready|on|html|append|attr|val|foreach
-    $v
 
 
 ### Demo
