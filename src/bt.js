@@ -3,7 +3,7 @@
  * @contributors  :
  * @copyright     : pluie.org
  * @date          : 2015-12-10 22:22:34
- * @version       : 0.6
+ * @version       : 0.7
  * @license       : MIT
  * @require       : html5 localStorage svan (small vanilla jquery-like lib)
  * @desc          : manage communication between browser tabs
@@ -33,7 +33,8 @@
  *      $bt.append('#test', "<b>it's cool to rewrite</b>", null, null, '1449974562012');
  *
  *      // rewrite content to specified browser tab with callback
- *      $bt.html('#test', "<b>it's cool to rewrite</b>", null, function() { alert('callback'); }, '1449974562012');
+ *      // callback must be define before command with method $bt.setCallback('callbackname', callback);
+ *      $bt.html('#test', "<b>it's cool to rewrite</b>", null, 'callbackname', '1449974562012');
  *
  *      // append content to specified browser tab on specific frame
  *      $bt.append('#test', "<b>it's cool to rewrite</b>", 'frameName', null, '1449974562012');
@@ -42,7 +43,7 @@
  *      $bt.sync('#test');
  *
  *      // perform a node synchro to specified browser tab on specific frame with callback
- *      $bt.sync('#test', 'frameName', callback, '1449974562012');
+ *      $bt.sync('#test', 'frameName', 'callbackname', '1449974562012');
  *
  *      // reload other browser tabs
  *      $bt.reload();
@@ -74,8 +75,18 @@
  *          }
  *      }
  *
+ *      // it's also possible to define a before and after function :
+ *      $bt.before = function(cmd) {
+ *          $bt.log("i'm fired before every command");
+ *      }
+ * 
+ *      $bt.after = function(cmd) {
+ *          $bt.log("i'm fired after every command");
+ *      }
+ *
  *      // send a custom command to other browser tabs
  *      $bt.send({ name : $bt.CMD_CUSTOM, customKey : 'customValue' });
+ *
  *
  *  Bonus
  *
@@ -106,7 +117,7 @@ var $j = (function alias() {
 }());
 
 var $bt  = {
-    VERSION      : 0.6,
+    VERSION      : 0.7,
     TRACE        : true && !$.isNone(console),
     /*! @constant LS_TABS localStorage key for browsertabs list  */
     LS_TABS      : 'bt.list',
@@ -132,6 +143,8 @@ var $bt  = {
     CMD_DONTKILL : 'bt.dontkill',
     /*! @var vars */
     vars         : [],
+    /*! @var callbacks */
+    callbacks    : [],
     /*! @var zomblist */
     zomblist     : [],
     /*! @var zkillonload */
@@ -148,15 +161,23 @@ var $bt  = {
         this._init(fn);
     },
     /*!
+     * @desc    custom method to implements before custom command
+     * @public
+     * @method  before
+     * @param   string  cmd         a cmd to treat
+     */
+    /*!
+     * @desc    custom method to implements after  custom command
+     * @public
+     * @method  after
+     * @param   string  cmd         a cmd to treat
+     */
+    /*!
      * @desc    custom method to implements custom command
      * @public
      * @method  on
      * @param   string  cmd         a cmd to treat
      */
-    on           : function(cmd) {
-        // custom
-        this.log(cmd);
-    },
     /*!
      * @desc    console log if trace is enabled
      * @public
@@ -188,10 +209,11 @@ var $bt  = {
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
      * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
+     * @param   string  callback    callback name to fire on command
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    append       : function(selector, data, ctx, fn, btid) {
-        this._dom(this.CMD_APPEND, ctx, selector, data, fn, btid);
+    append       : function(selector, data, ctx, callback, btid) {
+        this._dom(this.CMD_APPEND, ctx, selector, data, callback, btid);
     },
     /*!
      * @desc    perform a dom html command on other tabs
@@ -200,10 +222,11 @@ var $bt  = {
      * @param   string  selector    the selector wich target the node(s)
      * @param   string  data        the data to append
      * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
+     * @param   string  callback    callback name to fire on command
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    html         : function(selector, data, ctx, fn, btid) {
-        this._dom(this.CMD_HTML, ctx, selector, data, fn, btid);
+    html         : function(selector, data, ctx, callback, btid) {
+        this._dom(this.CMD_HTML, ctx, selector, data, callback, btid);
     },
     /*!
      * @desc    perform a dom synchro command on other tabs
@@ -211,11 +234,12 @@ var $bt  = {
      * @method  sync
      * @param   string  selector    the selector wich target the node(s) to synchro
      * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
+     * @param   string  callback    callback name to fire on command
      * @param   int     btid        target browser tab id (if not defined all target all tabs)
      */
-    sync         : function(selector, ctx, fn, btid) {
+    sync         : function(selector, ctx, callback, btid) {
         var c = !$.isNone(ctx) && ctx != null ? parent.frames[ctx].document : document;
-        this._dom(this.CMD_HTML, ctx, selector, $(selector, c).html(), fn, btid);
+        this._dom(this.CMD_HTML, ctx, selector, $(selector, c).html(), callback, btid);
     },
     /*!
      * @desc    perform a reload command on other tabs with specified url
@@ -226,6 +250,21 @@ var $bt  = {
      */
     reload       : function(url, btid) {
         $bt.send({ name : $bt.CMD_RELOAD, url : url, to : !btid ? '*' : btid });
+    },
+    /*!
+     * @desc    define a callback. callback are fire on desire command 
+     * @public
+     * @method  setCallback
+     * @param   string   name        the callback name (for command binding)
+     * @param   function callback    the callback
+     */
+    setCallback  : function(name, callback) {
+        if ($.isNone($bt.callbacks[name])) {
+            $bt.callbacks[name] = callback;
+        }
+        else {
+            console.log("BT ERROR : callback name already exist");
+        }
     },
     /*!
      * @desc    kill all zombi tabs
@@ -292,8 +331,8 @@ var $bt  = {
         }
     },
     /*! @private */
-    _dom         : function(n, c, s, d, fn, id) {
-        $bt.send({ name : n, context : c, selector : s, data : d, fn : fn, to : !id ? '*' : id });
+    _dom         : function(n, c, s, d, cb, id) {
+        $bt.send({ name : n, context : c, selector : s, data : d, callback : cb, to : !id ? '*' : id });
     },
     /*! @private */
     _unload      : function(e) {
@@ -313,20 +352,19 @@ var $bt  = {
         if (e.key!=$bt.LS_CMD) return;
         var cmd = $j.obj(e.newValue);
         if (!cmd) return;
-        $bt.log('RECEIVING cmd '+cmd.name+' : ');
         if (cmd.to == "*" || cmd.to == $bt.id) {
-            $bt.log("do "+cmd.name);
+            $bt.log('RECEIVING cmd '+cmd.name+' : ');
             $bt.log(cmd);
             try {
-                if (!$.isNone(cmd.context)) {
-                    $bt.log(cmd.context);
+                if (!$.isNone(cmd.context) && cmd.context!=null && !$.isNone(window.parent.frames[cmd.context])) {
                     cmd.context = window.parent.frames[cmd.context].document;
-                    $bt.log(cmd.context);
                 }
+                else cmd.context = document;
             }
             catch(e) {
                 $bt.log("bad context "+cmd.context+" : "+e.message);
             }
+            if ($.isFunc($bt.before)) $bt.before(cmd);
             switch(cmd.name) {
 
                 case $bt.CMD_SYNC : 
@@ -355,21 +393,17 @@ var $bt  = {
                 case $bt.CMD_DONTKILL :
                     $bt.zomblist[''+cmd.askid]['ping'+cmd.from] = 'pong';
                     break;
-
+                
                 default :
                     // do your stuff here
                     if ($.isFunc($bt.on)) $bt.on(cmd);
+                    break;
             }
-            if ($.isStr(cmd.fn) && cmd.fn.length>0) {
-                $bt.log(cmd.fn);
-                var f = eval("window."+cmd.fn);
-                if ($.isFunc(f)) {
-                    f();
-                }
+            if ($.isStr(cmd.callback) && cmd.callback.length>0 && !$.isNone($bt.callbacks[cmd.callback]) && $.isFunc($bt.callbacks[cmd.callback])) {
+                $bt.log(cmd.callback);
+                $bt.callbacks[cmd.callback].call({}, cmd);
             }
-        }
-        else {
-            $bt.log("ignoring (not target)");
+            if ($.isFunc($bt.after)) $bt.after(cmd);
         }
     }
 }

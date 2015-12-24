@@ -1,7 +1,7 @@
 <!doctype>
 <html>
 <head>
-    <title>pluie.org bt demo - v0.6</title>
+    <title>pluie.org bt demo - v0.7</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <style>
     body        { background-color:#888; color:white; font-family:arial; font-size:1.3rem; }
@@ -17,14 +17,15 @@
 </head>
 <body>
 <h2>pluie.org bt demo : </h2>
-<span>author : a-sansara - version : 0.6</span>
+<span>author : a-sansara - version : 0.7</span>
 <div>
 <p> Manage commnunication between browser tabs.</p>
 <p> this js lib can perform several actions on browser tabs like :<br/>
     <ul><li>append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.</li>
         <li>reload all tabs or a specific tab with specified url or tab 's current url</li>
         <li>perform your custom actions on all tabs or specific tab</li>
-        <li>(*new) kill zombies tabs onload</li>
+        <li>kill zombies tabs onload</li>
+        <li>(*new) define custom before and after command functions</li>
     </ul>
 </p>
 <h3>Static actions</h3>
@@ -37,7 +38,9 @@ enter txt or html : <br/>
 <textarea id="data"></textarea>
 <br/>select your action<br/>
 <button class="cmd-append">dom append</button>
+<button class="cmd-append-cb">dom append with callback</button>
 <button class="cmd-html">dom html</button>
+<button class="cmd-html">dom html with before</button>
 <button class="cmd-sync">dom sync</button>
 <button class="cmd-tarsync">target dom sync</button>
 <button class="cmd-reload">tab reload</button>
@@ -64,7 +67,17 @@ $bt.on = function(cmd) {
 }
 //
 $(document).ready(function() {
-    $bt.init();
+    $bt.init(function() {
+        $bt.setCallback('mycallback', function(cmd) {
+            alert("i'm the callback of cmd "+cmd.name); 
+        });
+        $bt.before = function(cmd) {
+            console.log('before cmd '+cmd.name); 
+        }
+        $bt.after = function(cmd) {
+            console.log('after cmd '+cmd.name); 
+        }
+    });
     var bind = function(call) {
         var html = $('#data').val();
         if (html.length > 0) call(html)
@@ -73,6 +86,11 @@ $(document).ready(function() {
     $('.cmd-append').on('click', function(){
         bind(function(data) {
             $bt.append('#test', data);
+        });
+    });
+    $('.cmd-append-cb').on('click', function(){
+        bind(function(data) {
+            $bt.append('#test', data, null, 'mycallback');
         });
     });
     $('.cmd-html').on('click', function(){

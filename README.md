@@ -32,7 +32,8 @@
     $bt.append('#test', "<b>it's cool to rewrite</b>", null, null, '1449974562012');
 
     // rewrite content to specified browser tab with callback
-    $bt.html('#test', "<b>it's cool to rewrite</b>", null, function() { alert('callback'); }, '1449974562012');
+    // callback must be define before command with method $bt.setCallback('callbackname', callback);
+    $bt.html('#test', "<b>it's cool to rewrite</b>", null, 'callbackname', '1449974562012');
 
     // append content to specified browser tab on specific frame
     $bt.append('#test', "<b>it's cool to rewrite</b>", 'frameName', null, '1449974562012');
@@ -41,7 +42,7 @@
     $bt.sync('#test');
 
     // perform a node synchro to specified browser tab on specific frame with callback
-    $bt.sync('#test', 'frameName', callback, '1449974562012');
+    $bt.sync('#test', 'frameName', 'callbackname', '1449974562012');
 
     // reload other browser tabs
     $bt.reload();
@@ -71,6 +72,15 @@
                 $bt.log("custom command `'+cmd.name+'` with `'+cmd.customKey+'`');
             break;
         }
+    }
+
+    // it's also possible to define a before and after function :
+    $bt.before = function(cmd) {
+        $bt.log("i'm fired before every command");
+    }
+
+    $bt.after = function(cmd) {
+        $bt.log("i'm fired after every command");
     }
 
     // send a custom command to other browser tabs
