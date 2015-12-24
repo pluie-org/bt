@@ -2,6 +2,7 @@
 
     Manage commnunication between browser tabs.
     this js lib can perform several actions on browser tabs like :
+        - (*new) search and kill zombies tabs (enable onload by default)
         - append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.
         - reload all tabs or a specific tab with specified url or tab 's current url
         - perform your custom actions on all tabs or specific tab
@@ -14,7 +15,8 @@
 ### Initialize
 
     $(document).ready(function() {
-        $bt.init();
+        // $bt.zkillonload = false // disable zombkill cmd at statup
+        $bt.init(optionalCallback);
     }
 
 
@@ -46,6 +48,9 @@
 
     // reload specific browser tab to specific url
     $bt.reload(window.location.path+"?reloaded=1", '1449974562012');
+
+    // search and kill zombies tabs
+    $bt.zombkill(callback, timeout);
 
     // get browser tab list
     $bt.list;

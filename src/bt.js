@@ -15,7 +15,8 @@
  *
  *
  *      $(document).ready(function() {
- *          $bt.init();
+ *          // $bt.zkillonload = false // disable zombkill cmd at statup
+ *          $bt.init(optionalCallback);
  *      });
  *
  *
@@ -49,7 +50,7 @@
  *      // reload specific browser tab to specific url
  *      $bt.reload(window.location.path+"?reloaded=1", '1449974562012');
  *
- *      // check and kill zombi tabs
+ *      // check and kill zombies tabs
  *      $bt.zombkill();
  *
  *      // get browser tab list
