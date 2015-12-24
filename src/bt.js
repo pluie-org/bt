@@ -3,7 +3,7 @@
  * @contributors  :
  * @copyright     : pluie.org
  * @date          : 2015-12-10 22:22:34
- * @version       : 0.5
+ * @version       : 0.6
  * @license       : MIT
  * @require       : html5 localStorage svan (small vanilla jquery-like lib)
  * @desc          : manage communication between browser tabs
@@ -48,6 +48,9 @@
  *
  *      // reload specific browser tab to specific url
  *      $bt.reload(window.location.path+"?reloaded=1", '1449974562012');
+ *
+ *      // check and kill zombi tabs
+ *      $bt.zombkill();
  *
  *      // get browser tab list
  *      $bt.list;
@@ -102,7 +105,7 @@ var $j = (function alias() {
 }());
 
 var $bt  = {
-    VERSION      : 0.5,
+    VERSION      : 0.6,
     TRACE        : true && !$.isNone(console),
     /*! @constant LS_TABS localStorage key for browsertabs list  */
     LS_TABS      : 'bt.list',
@@ -122,8 +125,18 @@ var $bt  = {
     CMD_HTML     : 'bt.dom.rewrite',
     /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
     CMD_RELOAD   : 'bt.reload',
+    /*! @constant CMD_ZOMBKILL internal command to perform a browser tab zombies kill */
+    CMD_ZOMBKILL : 'bt.zombkill',
+    /*! @constant CMD_DONTKILL internal command to perform a dontkill browser tab (CMD_ZOMBKILL reply) */
+    CMD_DONTKILL : 'bt.dontkill',
     /*! @var vars */
     vars         : [],
+    /*! @var zomblist */
+    zomblist     : [],
+    /*! @var zkillonload */
+    zkillonload  : true,
+    /*! @var zombTimeout in ms */
+    zombTimeout  : 250,
     /*!
      * @desc    initialize on dom ready
      * @public
@@ -213,18 +226,38 @@ var $bt  = {
     reload       : function(url, btid) {
         $bt.send({ name : $bt.CMD_RELOAD, url : url, to : !btid ? '*' : btid });
     },
-    /*! */
-    varset       : function(k, v) {
-        $bt.vars[k] = v;
-        $bt.send({ name : $bt.CMD_VAR_SET, data : { k : k, v : v } });
+    /*!
+     * @desc    kill all zombi tabs
+     * @public
+     * @method  zombkill
+     * @param   int     timeout     timeout ins ms for killing zombies (no ping reply)
+     */
+    zombkill     : function(callback, timeout) {
+        var askid = (new Date).getTime();
+        $bt.zomblist[''+askid] = [];
+        $bt.list.forEach(function(id) {
+            if (id != $bt.id) {
+                $bt.zomblist[''+askid]['ping'+id] = '';
+            }
+        });
+        $bt.send({ name : $bt.CMD_ZOMBKILL, askid : askid, to : '*' });
+        var tid = setTimeout(function() {
+            $bt._refresh();
+            for(var k in $bt.zomblist[''+askid]) {
+                if ($bt.zomblist[''+askid][k] != 'pong') {
+                    var i = $bt.list.indexOf(parseInt(k.substring(4)));
+                    if (i > -1) $bt.list.splice(i, 1);
+                }
+            }
+            $l.set($bt.LS_TABS, $j.str($bt.list));
+            $bt._broadcast();
+            $bt.log($bt.list);
+            clearTimeout(tid);
+            if ($.isFunc(callback)) callback();
+        }, !timeout ? $bt.zombTimeout : timeout);
     },
-    /*! */
-    varget       : function(k) {
-        if ($bt.list.length >1) {
-            var to = $bt.list[0] == $bt.id ? $bt.list[1] : $bt.list[0];
-            $bt.send({ name : $bt.CMD_VAR_GET, data : { k : k }, to : to });
-        }
-        return $bt.vars[k];
+    _dontkill    : function(askid, id) {
+        $bt.send({ name : $bt.CMD_DONTKILL, askid : askid, to : id });
     },
     /*! @private */
     _refresh     : function() {
@@ -252,7 +285,10 @@ var $bt  = {
         $l.set($bt.LS_TABS, $j.str($bt.list));
         $bt._broadcast();
         $bt.log($bt.list);
-        if ($.isFunc(fn)) fn();
+        if ($bt.zkillonload) $bt.zombkill(fn);
+        else if ($.isFunc(fn)) {
+            fn();
+        }
     },
     /*! @private */
     _dom         : function(n, c, s, d, fn, id) {
@@ -309,12 +345,14 @@ var $bt  = {
                     window.location = !$.isNone(cmd.url) ? cmd.url : window.location;
                     break;
 
-                case $bt.CMD_VAR_GET :
-                    $bt.varset(cmd.data.k, $bt.vars[cmd.data.k], cmd.from);
+                // emit response for zombkill
+                case $bt.CMD_ZOMBKILL :
+                    $bt._dontkill(cmd.askid, cmd.from);
                     break;
 
-                case $bt.CMD_VAR_SET :
-                    $bt.vars[cmd.data.k] = cmd.data.v;
+                // receiv response for zombkill
+                case $bt.CMD_DONTKILL :
+                    $bt.zomblist[''+cmd.askid]['ping'+cmd.from] = 'pong';
                     break;
 
                 default :

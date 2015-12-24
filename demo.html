@@ -1,7 +1,7 @@
 <!doctype>
 <html>
 <head>
-    <title>pluie.org bt demo - v0.4</title>
+    <title>pluie.org bt demo - v0.6</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <style>
     body        { background-color:#888; color:white; font-family:arial; font-size:1.3rem; }
@@ -17,18 +17,20 @@
 </head>
 <body>
 <h2>pluie.org bt demo : </h2>
-<span>author : a-sansara - version : 0.4</span>
+<span>author : a-sansara - version : 0.6</span>
 <div>
 <p> Manage commnunication between browser tabs.</p>
 <p> this js lib can perform several actions on browser tabs like :<br/>
     <ul><li>append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.</li>
         <li>reload all tabs or a specific tab with specified url or tab 's current url</li>
         <li>perform your custom actions on all tabs or specific tab</li>
+        <li>(*new) kill zombies tabs onload</li>
     </ul>
 </p>
 <h3>Static actions</h3>
 <button class="cmd-sta-append" title="$bt.append('#test', '<b>it\'s cool to append</b><br/>');">static dom append</button>
 <button class="cmd-sta-html" title="$bt.html('#test', '<b>it\'s cool to rewrite</b><br/>')">static dom html</button>
+<button class="cmd-zombkill" title="">cmd zombkill</button>
 
 <h3>Dynamic actions</h3>
 enter txt or html : <br/>
@@ -46,7 +48,7 @@ enter txt or html : <br/>
 <div id="test"></div>
 </div>
 <script type="text/javascript" src="src/svan-min.js"></script>
-<script type="text/javascript" src="src/bt-min.js"></script>
+<script type="text/javascript" src="src/bt.js"></script>
 <script type="text/javascript">
 // define a new custom cmd
 $bt.CMD_CUSTOM = "customCmd";
@@ -98,6 +100,21 @@ $(document).ready(function() {
     });
     $('.cmd-sta-html').on('click', function(){
         eval(this.title);
+    });
+    $('.cmd-zombkill').on('click', function(){
+        $bt.list = $j.obj($l.get($bt.LS_TABS));
+        for (var i=4; i > 0; i--) {
+            var zombi = (new Date).getTime()+i;
+            $bt.list.push(zombi);
+        }
+        $l.set($bt.LS_TABS, $j.str($bt.list));
+        $bt._broadcast();
+        $bt.log($bt.list);
+        var l = $bt.list.length;
+        alert('zombies tabs created, so, check for zombies');
+        $bt.zombkill(function(){
+            alert('killing '+(l-$bt.list.length)+' zombies');
+        });
     });
 });
 </script>
