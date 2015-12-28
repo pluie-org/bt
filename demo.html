@@ -4,15 +4,16 @@
     <title>pluie.org bt demo - v0.7</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <style>
-    body        { background-color:#888; color:white; font-family:arial; font-size:1.3rem; }
-    #test       { border: 1px dashed #ccc; }
-    body > div  { border-radius:20px; margin:40px; padding:20px; background-color: #ccc; color:black; }
-    body > span { font-size:0.8rem; }
-    button      { padding:5px 15px; }
-    h3          { margin:35px 0 10px 0; }
-    h2          { margin:5px 0 0 0; }
-    textarea    { padding:8px 5px; border-radius:10px; border-style:solid; width:100%; height:120px; font-size:1.2rem; }
-    #test       { margin:20px; background-color:white; padding:20px; border: 1px dashed #aaa; }
+    body          { background-color:#888; color:white; font-family:arial; font-size:1.3rem; }
+    #test         { border: 1px dashed #ccc; }
+    body > div    { border-radius:20px; margin:40px; padding:20px; background-color: #ccc; color:black; }
+    body > span   { font-size:0.8rem; }
+    button        { padding:5px 15px; }
+    h3            { margin:35px 0 10px 0; }
+    h2            { margin:5px 0 0 0; }
+    textarea      { padding:8px 5px; border-radius:10px; border-style:solid; width:100%; height:120px; font-size:1.2rem; }
+    #test         { margin:20px; background-color:white; padding:20px; border: 1px dashed #aaa; }
+    .syncAttrName { color:#990000; }
     </style>
 </head>
 <body>
@@ -21,17 +22,25 @@
 <div>
 <p> Manage commnunication between browser tabs.</p>
 <p> this js lib can perform several actions on browser tabs like :<br/>
-    <ul><li>append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.</li>
+    <ul><li>append/rewrite/synchro node content on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.</li>
         <li>reload all tabs or a specific tab with specified url or tab 's current url</li>
         <li>perform your custom actions on all tabs or specific tab</li>
         <li>kill zombies tabs onload</li>
-        <li>(*new) define custom before and after command functions</li>
+        <li>define custom before and after command functions</li>
+        <li>(*new) sync node attributes</li>
+        <li>(*new) prepend node content</li>
+        <li>(*new) varset  - set a stringifiable object on tabs</li>
+        <li>(*new) varsync - synchro a object previously set with varset on an other tab</li>
     </ul>
 </p>
 <h3>Static actions</h3>
+<button class="cmd-sta-prepend" title="$bt.prepend('#test', '<b>it\'s cool to prepend</b><br/>');">static dom prepend</button>
 <button class="cmd-sta-append" title="$bt.append('#test', '<b>it\'s cool to append</b><br/>');">static dom append</button>
 <button class="cmd-sta-html" title="$bt.html('#test', '<b>it\'s cool to rewrite</b><br/>')">static dom html</button>
 <button class="cmd-zombkill" title="">cmd zombkill</button>
+<button class="cmd-varset">cmd varset</button>
+<button class="cmd-varget">varget</button>
+<button class="cmd-varsync">varsync</button>
 
 <h3>Dynamic actions</h3>
 enter txt or html : <br/>
@@ -42,6 +51,7 @@ enter txt or html : <br/>
 <button class="cmd-html">dom html</button>
 <button class="cmd-html">dom html with before</button>
 <button class="cmd-sync">dom sync</button>
+<button class="cmd-attr">dom attr sync</button>
 <button class="cmd-tarsync">target dom sync</button>
 <button class="cmd-reload">tab reload</button>
 <button class="cmd-custom">custom cmd</button>
@@ -65,6 +75,7 @@ $bt.on = function(cmd) {
         break;
     }
 }
+$bt.vars['myVar'] = "start";
 //
 $(document).ready(function() {
     $bt.init(function() {
@@ -113,8 +124,52 @@ $(document).ready(function() {
     $('.cmd-tarsync').on('click', function(){
         $bt.sync('#test');
     });
+    $('.cmd-attr').on('click', function(){
+        $(this).toggle('syncAttrName');
+        $(this).attr('title', 'i have '+($(this).hasClass('syncAttrName') ? '' : 'not ')+' the class syncAttrName');
+        $bt.attr('.cmd-attr', ['class', 'title']);
+    });
     $('.cmd-sta-append').on('click', function(){
         eval(this.title);
+    });
+    $('.cmd-sta-prepend').on('click', function(){
+        eval(this.title);
+    });
+    $('.cmd-varset').on('click', function(){
+        var obj = {
+            toto : {
+                titi : {
+                    tutu : 'cool',
+                    tata : ['one', 2, 'three']
+                }
+            }
+        }
+        console.log(obj);
+        $('#test').html("varset : myVar<br/>json value : <br/>"+$j.str(obj));
+        $bt.varset('myVar', obj);
+    });
+    $('.cmd-varget').on('click', function(){
+        if (!$.isNone($bt.vars['myVar'])) {
+            $('#test').html("varget : myVar<br/>json value : <br/>"+$j.str($bt.vars['myVar']));
+        }
+        else {
+            $('#test').html("varget : myVar<br/>undefined");
+            $('#test').html("clic on varsync to sync myVar");
+        }
+    });
+    $('.cmd-varsync').on('click', function(){
+        if ($bt.list.length > 1) {
+            $bt.varsync('myVar', null, $bt.list[0] == $bt.id ? $bt.list[1] : $bt.list[0]);
+            if (!$.isNone($bt.vars['myVar'])) {
+                $('#test').html("varget : myVar<br/>json value : <br/>"+$j.str($bt.vars['myVar']));
+            }
+            else {
+                $('#test').html("varget : myVar<br/>undefined");
+            }
+        }
+        else {
+            $('#test').html("need one more tab to perform a bt varsync");
+        }
     });
     $('.cmd-sta-html').on('click', function(){
         eval(this.title);

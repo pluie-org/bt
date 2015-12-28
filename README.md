@@ -2,7 +2,12 @@
 
     Manage commnunication between browser tabs.
     this js lib can perform several actions on browser tabs like :
-        - (*new) search and kill zombies tabs (enable onload by default)
+        - (*new) varset  - set a stringifiable object on tabs
+        - (*new) varsync - synchro a object previously set with varset on an other tab
+        - (*new) prepend node
+        - (*new) synchro node attributes
+        - define custom before and after command functions
+        - search and kill zombies tabs (enable onload by default)
         - append/rewrite/synchro node on all (other) tabs or a specific tab (and possibly on specific frame context) eventually with callback.
         - reload all tabs or a specific tab with specified url or tab 's current url
         - perform your custom actions on all tabs or specific tab
@@ -44,6 +49,15 @@
     // perform a node synchro to specified browser tab on specific frame with callback
     $bt.sync('#test', 'frameName', 'callbackname', '1449974562012');
 
+    // perform a node attr synchro to all browser tab
+    $bt.attr('#test', ['class', 'title']);
+
+    // perform a varset to all tabs
+    $bt.varset('myVar', { toto : tutu : { tata : "titi" }});
+ 
+    // perform a varsync from specific tab (for example after calling tab will reload)
+    $bt.varsync('myVar', '1449974562012');
+ 
     // reload other browser tabs
     $bt.reload();
 

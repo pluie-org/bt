@@ -3,7 +3,7 @@
  * @contributors  :
  * @copyright     : pluie.org
  * @date          : 2015-12-10 22:22:34
- * @version       : 0.7
+ * @version       : 0.8
  * @license       : MIT
  * @require       : html5 localStorage svan (small vanilla jquery-like lib)
  * @desc          : manage communication between browser tabs
@@ -44,6 +44,15 @@
  *
  *      // perform a node synchro to specified browser tab on specific frame with callback
  *      $bt.sync('#test', 'frameName', 'callbackname', '1449974562012');
+ *
+ *      // perform a node attr synchro to all browser tab
+ *      $bt.attr('#test', ['class', 'title']);
+ *
+ *      // perform a varset to all tabs
+ *      $bt.varset('myVar', { toto : tutu : { tata : "titi" }});
+ *
+ *       // perform a varsync from specific tab (for example after calling tab will reload)
+ *      $bt.varsync('myVar', '1449974562012');
  *
  *      // reload other browser tabs
  *      $bt.reload();
@@ -117,7 +126,7 @@ var $j = (function alias() {
 }());
 
 var $bt  = {
-    VERSION      : 0.7,
+    VERSION      : 0.8,
     TRACE        : true && !$.isNone(console),
     /*! @constant LS_TABS localStorage key for browsertabs list  */
     LS_TABS      : 'bt.list',
@@ -128,11 +137,15 @@ var $bt  = {
     /*! @constant CMD_SYNC internal command to perform a browser tab synchro */
     CMD_SYNC     : 'bt.sync',
     /*! @constant CMD_VAR_SET internal command to perform a browser tab var set */
-    CMD_VAR_SET  : 'bt.set',
-    /*! @constant CMD_VAR_GET internal command to perform a browser tab var get */
-    CMD_VAR_GET  : 'bt.get',
+    CMD_VAR_SET  : 'bt.varset',
+    /*! @constant CMD_VAR_SYNC internal command to perform a browser tab var sync */
+    CMD_VAR_SYNC : 'bt.varsync',
+    /*! @constant CMD_ATTR_SYNC internal command to perform a dom sync attribute */
+    CMD_ATTR_SYNC: 'bt.attr',
     /*! @constant CMD_APPEND internal command to perform a dom append */
     CMD_APPEND   : 'bt.dom.append',
+    /*! @constant CMD_PREPEND internal command to perform a dom append */
+    CMD_PREPEND  : 'bt.dom.prepend',
     /*! @constant CMD_HTML internal command to perform a dom html */
     CMD_HTML     : 'bt.dom.rewrite',
     /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
@@ -216,6 +229,19 @@ var $bt  = {
         this._dom(this.CMD_APPEND, ctx, selector, data, callback, btid);
     },
     /*!
+     * @desc    perform a dom prepend command on other tabs
+     * @public
+     * @method  append
+     * @param   string  selector    the selector wich target the node(s)
+     * @param   string  data        the data to append
+     * @param   string  ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
+     * @param   string  callback    callback name to fire on command
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
+     */
+    prepend       : function(selector, data, ctx, callback, btid) {
+        this._dom(this.CMD_PREPEND, ctx, selector, data, callback, btid);
+    },
+    /*!
      * @desc    perform a dom html command on other tabs
      * @public
      * @method  append
@@ -296,6 +322,55 @@ var $bt  = {
             if ($.isFunc(callback)) callback();
         }, !timeout ? $bt.zombTimeout : timeout);
     },
+    /*!
+     * @desc    perform a var set command on other tabs
+     * @public
+     * @method  varset
+     * @param   string  varName     the var identifier
+     * @param   object  data        the data object (wich need to be stringifiable via json)
+     * @param   string  callback    callback name to fire on command
+     * @param   int     btid        target browser tab id (if not defined all target all tabs)
+     */
+    varset : function(varName, data, callback, btid) {
+        try {
+            var djson = $j.str(data);
+            $bt.vars[varName] = data;
+            $bt.send({ name : $bt.CMD_VAR_SET, varName : varName, data : djson, callback : callback, to : !btid ? '*' : btid });
+        }
+        catch(e) {
+            console.log(e);
+        }
+    },
+    /*!
+     * @desc    perform a var sync command on specified tab
+     * @public
+     * @method  varset
+     * @param   string  varName     the var identifier
+     * @param   string  callback    callback name to fire on command
+     * @param   int     fromId      target browser tab id (must be defined and uniq)
+     */
+    varsync : function(varName, callback, toId) {
+        $bt.send({ name : $bt.CMD_VAR_SYNC, varName : varName, data : '', callback : callback, to : toId });
+    },
+    /*!
+     * @desc    perform a dom attribute synchro command on other tabs
+     * @public
+     * @method  sync
+     * @param   string           selector    the selector wich target the node(s) to synchro
+     * @param   string|[string]  attrName    attribute name to sync
+     * @param   string           ctx         context name of selector (frame name relative to document wich match specified selector) or if not defined or null current document
+     * @param   string           callback    callback name to fire on command
+     * @param   int              btid        target browser tab id (if not defined all target all tabs)
+     */
+    attr : function(selector, attrName, ctx, callback, btid) {
+        var context = !ctx ? document : window.parent.frames[ctx].document;
+        if ($.isStr(attrName)) attrName = [ attrName ];
+        var data = [];
+        attrName.forEach(function (attr, index) {
+            data.push(attr != "disabled" ? $(selector, context).attr(attr) : $(selector, context).first().disabled);
+        });
+        $bt.send({ name : $bt.CMD_ATTR_SYNC, attr : attrName, selector : selector, data : data, context : ctx, callback : callback, to : !btid ? '*' : btid });
+    },
     _dontkill    : function(askid, id) {
         $bt.send({ name : $bt.CMD_DONTKILL, askid : askid, to : id });
     },
@@ -317,7 +392,8 @@ var $bt  = {
     _init        : function(fn) {
         $(window).on('beforeunload', $bt._unload);
         $(window).on('storage', $bt._cmd);
-        $(window).on('focus', $bt._focus);
+        $bt._defHandlerCurrentTab();
+        // $(window).on('focus', $bt._focus); replace by _defHandlerCurrentTab to fix frame context
         $bt.id   = (new Date).getTime();
         var t    = $l.get($bt.LS_TABS);
         $bt.list = t==null ? [] : $j.obj(t);
@@ -329,6 +405,27 @@ var $bt  = {
         else if ($.isFunc(fn)) {
             fn();
         }
+    },
+    /*! @private */
+    _defHandlerCurrentTab : function() {
+        var evcVal  = "hidden";
+        var evcType = "visibilitychange";
+        if (!$.isNone(document.mozHidden)) {
+            evcVal  = "mozHidden";
+            evcType = "mozvisibilitychange";
+        } else if (!$.isNone(document.msHidden)) {
+            evcVal  = "msHidden";
+            evcType = "msvisibilitychange";
+        } else if (!$.isNone(document.webkitHidden)) {
+            evcVal  = "webkitHidden";
+            evcType = "webkitvisibilitychange";
+        }
+        $(window).on(evcType, function() {
+            if (!document[evcVal]) {
+                $bt.log('SET CURRENT TAB : '+$bt.id);
+                $l.set($bt.LS_CURTAB, $bt.id);
+            }
+        }, false);
     },
     /*! @private */
     _dom         : function(n, c, s, d, cb, id) {
@@ -343,9 +440,9 @@ var $bt  = {
         return null;
     },
     /*! @private */
-    _focus       : function(e) {
-        $l.set($bt.LS_CURTAB, $bt.id);
-    },
+    //~ _focus       : function(e) {
+        //~ $l.set($bt.LS_CURTAB, $bt.id);
+    //~ },
     /*! @private */
     _cmd         : function(e) {
         if (!$.isNone(e.originalEvent)) e = e.originalEvent;
@@ -380,6 +477,10 @@ var $bt  = {
                     $(cmd.selector, cmd.context).html(cmd.data);
                     break;
 
+                case $bt.CMD_PREPEND :
+                    $(cmd.selector, cmd.context).prepend(cmd.data);
+                    break;
+
                 case $bt.CMD_RELOAD :
                     window.location = !$.isNone(cmd.url) ? cmd.url : window.location;
                     break;
@@ -393,7 +494,26 @@ var $bt  = {
                 case $bt.CMD_DONTKILL :
                     $bt.zomblist[''+cmd.askid]['ping'+cmd.from] = 'pong';
                     break;
-                
+
+                case $bt.CMD_VAR_SET :
+                    $bt.vars[cmd.varName] = cmd.data;
+                    break;
+
+                case $bt.CMD_VAR_SYNC :
+                    $bt.varset(cmd.varName, $bt.vars[cmd.varName]);
+                    break;
+
+                case $bt.CMD_ATTR_SYNC :
+                    cmd.attr.forEach(function(attr, index) {
+                        if (cmd.attr != "disabled") {
+                            $(cmd.selector, cmd.context).attr(attr, cmd.data[index]);
+                        }
+                        else {
+                            $(cmd.selector, cmd.context).first().disabled = cmd.data[index];
+                        }
+                    });
+                    break;
+
                 default :
                     // do your stuff here
                     if ($.isFunc($bt.on)) $bt.on(cmd);
