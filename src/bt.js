@@ -127,33 +127,19 @@ var $j = (function alias() {
 
 var $bt  = {
     VERSION      : 0.8,
+    UID          : null,
+    HASH         : null,
     TRACE        : true && !$.isNone(console),
-    /*! @constant LS_TABS localStorage key for browsertabs list  */
-    LS_TABS      : 'bt.list',
-    /*! @constant LS_CURTAB localStorage key for current browsertab */
-    LS_CURTAB    : 'bt.current',
-    /*! @constant LS_CMD localStorage key command to interact with other tabs */
-    LS_CMD       : 'bt.event',
-    /*! @constant CMD_SYNC internal command to perform a browser tab synchro */
-    CMD_SYNC     : 'bt.sync',
-    /*! @constant CMD_VAR_SET internal command to perform a browser tab var set */
-    CMD_VAR_SET  : 'bt.varset',
-    /*! @constant CMD_VAR_SYNC internal command to perform a browser tab var sync */
-    CMD_VAR_SYNC : 'bt.varsync',
-    /*! @constant CMD_ATTR_SYNC internal command to perform a dom sync attribute */
-    CMD_ATTR_SYNC: 'bt.attr',
-    /*! @constant CMD_APPEND internal command to perform a dom append */
-    CMD_APPEND   : 'bt.dom.append',
-    /*! @constant CMD_PREPEND internal command to perform a dom append */
-    CMD_PREPEND  : 'bt.dom.prepend',
-    /*! @constant CMD_HTML internal command to perform a dom html */
-    CMD_HTML     : 'bt.dom.rewrite',
-    /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
-    CMD_RELOAD   : 'bt.reload',
-    /*! @constant CMD_ZOMBKILL internal command to perform a browser tab zombies kill */
-    CMD_ZOMBKILL : 'bt.zombkill',
-    /*! @constant CMD_DONTKILL internal command to perform a dontkill browser tab (CMD_ZOMBKILL reply) */
-    CMD_DONTKILL : 'bt.dontkill',
+    setConstant  : function(value, name) {
+        if (!name) {
+            if (this.UID == null) throw Error('UID is not define, you need to define $bt.UID or provide the "name" parameter');
+            else if (this.HASH == null) {
+                this.HASH = this._getHash(this.UID);
+            }
+            return this.HASH+'.'+value;
+        }
+        return _getHash(name)+'.'+value;
+    },
     /*! @var vars */
     vars         : [],
     /*! @var callbacks */
@@ -170,7 +156,13 @@ var $bt  = {
      * @method  init
      * @param   string  fn          a function to call on initializing on dom ready
      */
-    init         : function(fn) {
+    init         : function(uid, fn) {
+        if (!fn && $.isFunc(uid) || arguments.length==0) {
+            if (this.UID == null) throw Error('UID is not define, you need to define $bt.UID or provide the "uid" parameter');
+            if (arguments.length > 0) fn  = uid;
+            uid = this.UID;
+        }
+        this._initConstant(uid);
         this._init(fn);
     },
     /*!
@@ -389,6 +381,46 @@ var $bt  = {
         if (i > -1) $bt.list.splice(i, 1);
     },
     /*! @private */
+    _getHash     : function(name) {
+        name = window.location.host + '#' + name;
+        var uid = 0;
+        for (var i = 0, c = 0, lim = name.length; i < lim; i++) {
+            uid = ((uid<<5)-uid)+name.charCodeAt(i);
+            uid = uid & uid; // Convert to 32bit integer
+        }
+        return Math.abs(uid);
+    },
+    /*! @private */
+    _initConstant : function(name) {
+        var uid = this.HASH != null ? this.HASH : this._getHash(name);
+        /*! @constant LS_TABS localStorage key for browsertabs list  */
+        this.LS_TABS       = uid+'.bt.list',
+        /*! @constant LS_CURTAB localStorage key for current browsertab */
+        this.LS_CURTAB     = uid+'.bt.current',
+        /*! @constant LS_CMD localStorage key command to interact with other tabs */
+        this.LS_CMD        = uid+'.bt.event',
+        /*! @constant CMD_SYNC internal command to perform a browser tab synchro */
+        this.CMD_SYNC      = uid+'.bt.sync',
+        /*! @constant CMD_VAR_SET internal command to perform a browser tab var set */
+        this.CMD_VAR_SET   = uid+'.bt.varset',
+        /*! @constant CMD_VAR_SYNC internal command to perform a browser tab var sync */
+        this.CMD_VAR_SYNC  = uid+'.bt.varsync',
+        /*! @constant CMD_ATTR_SYNC internal command to perform a dom sync attribute */
+        this.CMD_ATTR_SYNC = uid+'.bt.attr',
+        /*! @constant CMD_APPEND internal command to perform a dom append */
+        this.CMD_APPEND    = uid+'.bt.dom.append',
+        /*! @constant CMD_PREPEND internal command to perform a dom append */
+        this.CMD_PREPEND   = uid+'.bt.dom.prepend',
+        /*! @constant CMD_HTML internal command to perform a dom html */
+        this.CMD_HTML      = uid+'.bt.dom.rewrite',
+        /*! @constant CMD_RELOAD internal command to perform a browser tab reload */
+        this.CMD_RELOAD    = uid+'.bt.reload',
+        /*! @constant CMD_ZOMBKILL internal command to perform a browser tab zombies kill */
+        this.CMD_ZOMBKILL  = uid+'.bt.zombkill',
+        /*! @constant CMD_DONTKILL internal command to perform a dontkill browser tab (CMD_ZOMBKILL reply) */
+        this.CMD_DONTKILL  = uid+'.bt.dontkill'
+    },
+    /*! @private */
     _init        : function(fn) {
         $(window).on('beforeunload', $bt._unload);
         $(window).on('storage', $bt._cmd);
@@ -450,8 +482,8 @@ var $bt  = {
         var cmd = $j.obj(e.newValue);
         if (!cmd) return;
         if (cmd.to == "*" || cmd.to == $bt.id) {
-            $bt.log('RECEIVING cmd '+cmd.name+' : ');
-            $bt.log(cmd);
+            console.log('RECEIVING cmd '+cmd.name+' : ');
+            console.log(cmd);
             try {
                 if (!$.isNone(cmd.context) && cmd.context!=null && !$.isNone(window.parent.frames[cmd.context])) {
                     cmd.context = window.parent.frames[cmd.context].document;
@@ -496,11 +528,11 @@ var $bt  = {
                     break;
 
                 case $bt.CMD_VAR_SET :
-                    $bt.vars[cmd.varName] = cmd.data;
+                    $bt.vars[cmd.varName] = $j.obj(cmd.data);
                     break;
 
                 case $bt.CMD_VAR_SYNC :
-                    $bt.varset(cmd.varName, $bt.vars[cmd.varName]);
+                    if (!$.isNone($bt.vars[cmd.varName])) $bt.varset(cmd.varName, $bt.vars[cmd.varName]);
                     break;
 
                 case $bt.CMD_ATTR_SYNC :
